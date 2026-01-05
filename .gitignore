@@ -1,0 +1,5 @@
+mini_heroku/uploads/
+mini_heroku/builds/
+mini_heroku/__pycache__
+mini_heroku/core/__pycache__
+mini_heroku/core/patchers/__pycache__
