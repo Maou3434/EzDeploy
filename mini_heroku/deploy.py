@@ -17,20 +17,22 @@ def deploy(zip_path):
     
     # 2. Extract
     print(f"Extracting to {build_dir}...")
-    extract(zip_path, build_dir)
-    
-    # Handle single nested directory
-    entries = [e for e in os.listdir(build_dir) if not e.startswith('__')] # Ignore __MACOSX
-    if len(entries) == 1 and os.path.isdir(os.path.join(build_dir, entries[0])):
-        print(f"Detected nested directory: {entries[0]}. Adjusting build root.")
-        build_dir = os.path.join(build_dir, entries[0])
-    
+    try:
+        extract(zip_path, build_dir)
+        
+        # Handle single nested directory
+        entries = [e for e in os.listdir(build_dir) if not e.startswith('__')] # Ignore __MACOSX
+        if len(entries) == 1 and os.path.isdir(os.path.join(build_dir, entries[0])):
+            print(f"Detected nested directory: {entries[0]}. Adjusting build root.")
+            build_dir = os.path.join(build_dir, entries[0])
+    except Exception as e:
+        return {"status": "error", "message": f"Extraction failed: {str(e)}"}
+
     # 3. Detect Runtime
     runtime = detect_runtime(build_dir)
     print(f"Detected runtime: {runtime}")
     if runtime == "unknown":
-        print("Error: Could not detect runtime. Aborting.")
-        return
+        return {"status": "error", "message": "Could not detect runtime."}
 
     # 4. Auto Patch
     print("Auto-patching application...")
@@ -44,8 +46,7 @@ def deploy(zip_path):
     image_tag = app_name.lower()
     print(f"Building image {image_tag}...")
     if not build_image(build_dir, image_tag):
-        print("Build failed.")
-        return
+        return {"status": "error", "message": "Docker build failed."}
 
     # 7. Get Free Port
     port = get_free_port()
@@ -54,12 +55,15 @@ def deploy(zip_path):
     # 8. Run Container
     print("Running container...")
     if run_container(image_tag, port):
-        print("\n" + "="*30)
-        print(f"DEPLOYMENT SUCCESS!")
-        print(f"App is running at: http://localhost:{port}")
-        print("="*30 + "\n")
+        return {
+            "status": "success",
+            "message": "Deployment success!",
+            "app_name": app_name,
+            "port": port,
+            "url": f"http://localhost:{port}"
+        }
     else:
-        print("Deployment failed.")
+        return {"status": "error", "message": "Container failed to start."}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Mini Heroku Deployer")
@@ -69,4 +73,5 @@ if __name__ == "__main__":
     if not os.path.exists(args.zip_path):
         print(f"File not found: {args.zip_path}")
     else:
-        deploy(args.zip_path)
+        result = deploy(args.zip_path)
+        print(result)

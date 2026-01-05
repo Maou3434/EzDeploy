@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-01-05
+### Added
+- **Dashboard UI**: Modern "Cyber-Glass" React application for managing deployments.
+- **Backend API**: Flask-based REST API (`backend/api.py`) exposing deployment endpoints.
+- **Container Management**: Real-time listing and deletion of containers from the UI.
+- **Visual Design**: High-end glassmorphism aesthetic with drag-and-drop upload.
+
 ## [0.2.0] - 2026-01-05
 ### Added
 - **Deployment Pipeline**: Full orchestration from ZIP file to running container.
