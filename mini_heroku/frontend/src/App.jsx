@@ -6,16 +6,51 @@ import { FiUploadCloud, FiServer, FiTrash2, FiActivity, FiExternalLink } from 'r
 function App() {
   const [containers, setContainers] = useState([]);
   const [deploying, setDeploying] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [activeTaskId, setActiveTaskId] = useState(null);
   const fileInputRef = useRef(null);
 
   // Fetch containers loop
   useEffect(() => {
     fetchContainers();
-    const interval = setInterval(fetchContainers, 3000);
+    const interval = setInterval(fetchContainers, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Deployment polling loop
+  useEffect(() => {
+    let pollInterval;
+    if (activeTaskId) {
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await axios.get(`/api/deploy/status/${activeTaskId}`);
+          const { status, message } = res.data;
+
+          if (status === 'success') {
+            setUploadStatus(`Success! ${message}`);
+            setActiveTaskId(null);
+            setDeploying(false);
+            fetchContainers();
+            setTimeout(() => setUploadStatus(null), 8000);
+          } else if (status === 'error') {
+            setUploadStatus(`Error: ${message}`);
+            setActiveTaskId(null);
+            setDeploying(false);
+            setTimeout(() => setUploadStatus(null), 8000);
+          } else {
+            setUploadStatus(message || "Building...");
+          }
+        } catch (err) {
+          console.error("Polling error:", err);
+          setActiveTaskId(null);
+          setDeploying(false);
+          setUploadStatus("Lost connection to deployment task.");
+        }
+      }, 2000);
+    }
+    return () => clearInterval(pollInterval);
+  }, [activeTaskId]);
 
   const fetchContainers = async () => {
     try {
@@ -53,7 +88,7 @@ function App() {
 
   const handleUpload = async (file) => {
     setDeploying(true);
-    setUploadStatus("Uploading & Deploying...");
+    setUploadStatus("Uploading ZIP...");
 
     const formData = new FormData();
     formData.append('file', file);
@@ -62,13 +97,20 @@ function App() {
       const res = await axios.post('/api/deploy', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setUploadStatus(`Success! App running on port ${res.data.port}`);
-      fetchContainers();
-      setTimeout(() => setUploadStatus(null), 5000);
+
+      if (res.status === 202) {
+        setActiveTaskId(res.data.task_id);
+        setUploadStatus("Deployment started...");
+      } else {
+        // Fallback for immediate success
+        setUploadStatus(`Success! App running on port ${res.data.port}`);
+        fetchContainers();
+        setDeploying(false);
+        setTimeout(() => setUploadStatus(null), 5000);
+      }
     } catch (err) {
       console.error(err);
-      setUploadStatus("Deployment Failed. Check logs.");
-    } finally {
+      setUploadStatus("Cloud upload failed.");
       setDeploying(false);
     }
   };

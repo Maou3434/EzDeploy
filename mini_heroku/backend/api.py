@@ -1,21 +1,45 @@
 import os
 import sys
 import subprocess
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-# Add parent directory to path to import core modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from deploy import deploy
+import models
 
 app = Flask(__name__)
 CORS(app) # Allow Cross-Origin requests for React frontend
 
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Executor for background tasks
+executor = ThreadPoolExecutor(max_workers=4)
+
+def run_deployment_async(task_id, filepath, app_name):
+    """
+    Background worker for deployment.
+    """
+    def progress_callback(msg):
+        models.update_deployment(task_id, 'building', msg)
+
+    try:
+        models.update_deployment(task_id, 'building', 'Starting build...')
+        result = deploy(filepath, status_callback=progress_callback)
+        
+        if result.get("status") == "success":
+            models.update_deployment(task_id, 'success', f"Deployed successfully to port {result.get('port')}")
+            # Ensure app exists in database
+            models.create_app(app_name, runtime=None, port=result.get('port'))
+        else:
+            models.update_deployment(task_id, 'error', result.get("message", "Unknown build error"))
+            
+    except Exception as e:
+        models.update_deployment(task_id, 'error', str(e))
 
 @app.route('/api/deploy', methods=['POST'])
 def deploy_app():
@@ -31,10 +55,27 @@ def deploy_app():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        # Trigger deployment
-        result = deploy(filepath)
-        status_code = 200 if result.get("status") == "success" else 500
-        return jsonify(result), status_code
+        app_name = os.path.splitext(filename)[0]
+        task_id = str(uuid.uuid4())
+        
+        # Initialize deployment tracking
+        models.start_deployment(task_id, app_name)
+        
+        # Trigger deployment in background
+        executor.submit(run_deployment_async, task_id, filepath, app_name)
+        
+        return jsonify({
+            "status": "accepted",
+            "task_id": task_id,
+            "message": "Deployment started in background"
+        }), 202
+
+@app.route('/api/deploy/status/<task_id>', methods=['GET'])
+def get_deployment_status(task_id):
+    status = models.get_deployment(task_id)
+    if not status:
+        return jsonify({"error": "Task not found"}), 404
+    return jsonify(status)
 
 @app.route('/api/containers', methods=['GET'])
 def list_containers():
@@ -73,4 +114,5 @@ def delete_container(container_id):
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
+    models.init_db() # Ensure DB is initialized
     app.run(host='0.0.0.0', port=5000, debug=True)

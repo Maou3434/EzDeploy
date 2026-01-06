@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2026-01-06
+### Changed
+- **Project Structure**: Consolidated core logic (`core/`, `utils/`, `dockerfiles/`, `deploy.py`, `auto_patch.py`) into the `backend/` directory for better encapsulation.
+- **Backend Updates**: Refactored `api.py` to use local module imports and relative paths for uploads and builds.
+### Fixed
+- **Configuration**: Updated `.gitignore` with comprehensive rules for Python, Node.js, and project-specific temporary files.
+### Removed
+- **Redundant Files**: Deleted `test_patcher.py` and legacy root `uploads/`/`builds/` directories.
+
 ## [0.3.0] - 2026-01-05
 ### Added
 - **Dashboard UI**: Modern "Cyber-Glass" React application for managing deployments.

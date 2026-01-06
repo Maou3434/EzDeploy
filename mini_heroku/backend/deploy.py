@@ -8,52 +8,58 @@ from core.docker_builder import generate_dockerfile, build_image
 from core.runner import run_container
 from auto_patch import auto_patch
 
-def deploy(zip_path):
-    print(f"Deploying {zip_path}...")
+def deploy(zip_path, status_callback=None):
+    def update_status(msg):
+        print(msg)
+        if status_callback:
+            status_callback(msg)
+
+    update_status(f"Deploying {zip_path}...")
     
     # 1. Prepare Paths
     app_name = os.path.splitext(os.path.basename(zip_path))[0]
     build_dir = os.path.join("builds", app_name)
     
     # 2. Extract
-    print(f"Extracting to {build_dir}...")
+    update_status(f"Extracting to {build_dir}...")
     try:
         extract(zip_path, build_dir)
         
         # Handle single nested directory
         entries = [e for e in os.listdir(build_dir) if not e.startswith('__')] # Ignore __MACOSX
         if len(entries) == 1 and os.path.isdir(os.path.join(build_dir, entries[0])):
-            print(f"Detected nested directory: {entries[0]}. Adjusting build root.")
+            update_status(f"Detected nested directory: {entries[0]}. Adjusting build root.")
             build_dir = os.path.join(build_dir, entries[0])
     except Exception as e:
         return {"status": "error", "message": f"Extraction failed: {str(e)}"}
 
     # 3. Detect Runtime
+    update_status(f"Detecting runtime in {build_dir}...")
     runtime = detect_runtime(build_dir)
-    print(f"Detected runtime: {runtime}")
+    update_status(f"Detected runtime: {runtime}")
     if runtime == "unknown":
         return {"status": "error", "message": "Could not detect runtime."}
 
     # 4. Auto Patch
-    print("Auto-patching application...")
+    update_status("Auto-patching application for port compatibility...")
     auto_patch(build_dir, runtime)
     
     # 5. Generate Dockerfile
-    print("Generating Dockerfile...")
+    update_status("Generating Dockerfile...")
     generate_dockerfile(build_dir, runtime)
     
     # 6. Build Image
     image_tag = app_name.lower()
-    print(f"Building image {image_tag}...")
+    update_status(f"Building Docker image {image_tag} (this may take a minute)...")
     if not build_image(build_dir, image_tag):
         return {"status": "error", "message": "Docker build failed."}
 
     # 7. Get Free Port
     port = get_free_port()
-    print(f"Allocated port: {port}")
+    update_status(f"Allocated port: {port}")
     
     # 8. Run Container
-    print("Running container...")
+    update_status("Starting container...")
     if run_container(image_tag, port):
         return {
             "status": "success",

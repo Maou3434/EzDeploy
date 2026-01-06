@@ -1,6 +1,44 @@
-mini_heroku/builds/
-mini_heroku/__pycache__
-mini_heroku/core/__pycache__
-mini_heroku/core/patchers/__pycache__
-mini_heroku/uploads
-mini_heroku/utils/__pycache__
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+dist/
+build/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+.next/
+out/
+dist/
+
+# Project Specific
+mini_heroku/backend/uploads/*
+mini_heroku/backend/builds/*
+mini_heroku/backend/*.db
+mini_heroku/backend/*.db-journal
+mini_heroku/frontend/dist/
+mini_heroku/frontend/node_modules/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Documentation
+# Initial_Plan.md
+# VERSION.md
