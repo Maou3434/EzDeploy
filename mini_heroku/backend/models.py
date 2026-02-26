@@ -35,6 +35,19 @@ def init_db():
             finished_at TIMESTAMP
         )
     ''')
+
+    # Deployment Stages table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS deployment_stages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deployment_id TEXT NOT NULL,
+            stage_name TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            message TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (deployment_id) REFERENCES deployments (id)
+        )
+    ''')
     
     conn.commit()
     conn.close()
@@ -52,7 +65,31 @@ def start_deployment(task_id, app_name):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute('INSERT INTO deployments (id, app_name, status) VALUES (?, ?, ?)', (task_id, app_name, 'building'))
+        cursor.execute('INSERT INTO deployments (id, app_name, status) VALUES (?, ?, ?)', (task_id, app_name, 'processing'))
+        # Initialize stages
+        stages = [
+            "Source Code Ingestion",
+            "Runtime & Dependency Inspection",
+            "Dockerfile Generation",
+            "Container Image Building",
+            "Registry Management",
+            "Runtime Execution"
+        ]
+        for stage in stages:
+            cursor.execute('INSERT INTO deployment_stages (deployment_id, stage_name, status) VALUES (?, ?, ?)', (task_id, stage, 'pending'))
+        conn.commit()
+    finally:
+        conn.close()
+
+def update_deployment_stage(deployment_id, stage_name, status, message=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            UPDATE deployment_stages 
+            SET status=?, message=?, updated_at=CURRENT_TIMESTAMP 
+            WHERE deployment_id=? AND stage_name=?
+        ''', (status, message, deployment_id, stage_name))
         conn.commit()
     finally:
         conn.close()
@@ -61,10 +98,7 @@ def update_deployment(task_id, status, message=None):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        if status == 'success':
-            cursor.execute('UPDATE deployments SET status=?, message=?, finished_at=CURRENT_TIMESTAMP WHERE id=?', (status, message, task_id))
-        else:
-            cursor.execute('UPDATE deployments SET status=?, message=?, finished_at=CURRENT_TIMESTAMP WHERE id=?', (status, message, task_id))
+        cursor.execute('UPDATE deployments SET status=?, message=?, finished_at=CURRENT_TIMESTAMP WHERE id=?', (status, message, task_id))
         conn.commit()
     finally:
         conn.close()
@@ -73,7 +107,12 @@ def get_deployment(task_id):
     conn = get_db()
     try:
         row = conn.execute('SELECT * FROM deployments WHERE id = ?', (task_id,)).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        deployment = dict(row)
+        stages = conn.execute('SELECT stage_name, status, message, updated_at FROM deployment_stages WHERE deployment_id = ? ORDER BY id ASC', (task_id,)).fetchall()
+        deployment['stages'] = [dict(s) for s in stages]
+        return deployment
     finally:
         conn.close()
 

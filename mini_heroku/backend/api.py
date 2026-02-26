@@ -24,19 +24,15 @@ def run_deployment_async(task_id, filepath, app_name):
     """
     Background worker for deployment.
     """
-    def progress_callback(msg):
-        models.update_deployment(task_id, 'building', msg)
-
     try:
-        models.update_deployment(task_id, 'building', 'Starting build...')
-        result = deploy(filepath, status_callback=progress_callback)
+        result = deploy(filepath, task_id=task_id)
         
         if result.get("status") == "success":
-            models.update_deployment(task_id, 'success', f"Deployed successfully to port {result.get('port')}")
+            models.update_deployment(task_id, 'success', result.get("message"))
             # Ensure app exists in database
             models.create_app(app_name, runtime=None, port=result.get('port'))
         else:
-            models.update_deployment(task_id, 'error', result.get("message", "Unknown build error"))
+            models.update_deployment(task_id, 'error', result.get("message", "Unknown deployment error"))
             
     except Exception as e:
         models.update_deployment(task_id, 'error', str(e))
@@ -67,7 +63,7 @@ def deploy_app():
         return jsonify({
             "status": "accepted",
             "task_id": task_id,
-            "message": "Deployment started in background"
+            "message": "Deployment started"
         }), 202
 
 @app.route('/api/deploy/status/<task_id>', methods=['GET'])
@@ -76,6 +72,90 @@ def get_deployment_status(task_id):
     if not status:
         return jsonify({"error": "Task not found"}), 404
     return jsonify(status)
+
+# File Management for Code Editor
+@app.route('/api/files/<app_name>', methods=['GET'])
+def list_app_files(app_name):
+    app_path = os.path.join(os.path.dirname(__file__), 'builds', app_name)
+    if not os.path.exists(app_path):
+        return jsonify({"error": "App path not found"}), 404
+    
+    files = []
+    for root, dirs, filenames in os.walk(app_path):
+        for f in filenames:
+            rel_path = os.path.relpath(os.path.join(root, f), app_path)
+            if not rel_path.startswith('.') and 'node_modules' not in rel_path and '__pycache__' not in rel_path:
+                files.append(rel_path)
+    return jsonify(files)
+
+@app.route('/api/files/<app_name>/read', methods=['GET'])
+def read_app_file(app_name):
+    rel_path = request.args.get('path')
+    if not rel_path:
+        return jsonify({"error": "Path required"}), 400
+    
+    app_path = os.path.join(os.path.dirname(__file__), 'builds', app_name)
+    full_path = os.path.join(app_path, rel_path)
+    
+    if not os.path.exists(full_path):
+        return jsonify({"error": "File not found"}), 404
+        
+    try:
+        with open(full_path, 'r') as f:
+            content = f.read()
+        return jsonify({"content": content})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/files/<app_name>/write', methods=['POST'])
+def write_app_file(app_name):
+    data = request.json
+    rel_path = data.get('path')
+    content = data.get('content')
+    
+    if not rel_path or content is None:
+        return jsonify({"error": "Path and content required"}), 400
+    
+    app_path = os.path.join(os.path.dirname(__file__), 'builds', app_name)
+    full_path = os.path.join(app_path, rel_path)
+    
+    try:
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, 'w') as f:
+            f.write(content)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/redeploy/<app_name>', methods=['POST'])
+def redeploy_app(app_name):
+    # For redeploy, we assume files are already in builds/app_name
+    # We need to trigger a building process that skips ingestion
+    task_id = str(uuid.uuid4())
+    models.start_deployment(task_id, app_name)
+    
+    # We'll use a modified pipeline call or just bypass ingestion
+    def run_redeploy_async():
+        from core.pipeline import DeploymentPipeline
+        pipeline = DeploymentPipeline(task_id, None, app_name)
+        # Manually trigger stages skipping ingestion
+        pipeline.update_stage("Source Code Ingestion", "success", "Using existing source code.")
+        
+        try:
+            if pipeline.stage_inspection() and \
+               pipeline.stage_dockerfile() and \
+               pipeline.stage_build() and \
+               pipeline.stage_registry() and \
+               pipeline.stage_execution():
+                models.update_deployment(task_id, 'success', f"Redeployed successfully to port {pipeline.port}")
+                models.create_app(app_name, runtime=None, port=pipeline.port)
+            else:
+                 models.update_deployment(task_id, 'error', "Redeploy failed.")
+        except Exception as e:
+            models.update_deployment(task_id, 'error', str(e))
+
+    executor.submit(run_redeploy_async)
+    return jsonify({"status": "accepted", "task_id": task_id}), 202
 
 @app.route('/api/containers', methods=['GET'])
 def list_containers():
