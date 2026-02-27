@@ -66,6 +66,35 @@ def deploy_app():
             "message": "Deployment started"
         }), 202
 
+def resolve_app_name(app_name):
+    """
+    Helper to map potential container names (e.g., flask_app_1_container) 
+    back to the actual build directory name (e.g., Flask_App_1).
+    """
+    builds_dir = os.path.join(os.path.dirname(__file__), 'builds')
+    if not os.path.exists(builds_dir):
+        return None
+    
+    # Normalize target name
+    target = app_name.lower()
+    if target.endswith('_container'):
+        target = target[:-10]
+    
+    try:
+        # Search for a case-insensitive match in the builds directory
+        for d in os.listdir(builds_dir):
+            if d.lower() == target:
+                return d
+    except Exception:
+        pass
+        
+    # Fallback to exact match if search fails
+    if os.path.exists(os.path.join(builds_dir, app_name)):
+        return app_name
+        
+    return None
+
+# Deployment Status Endpoint
 @app.route('/api/deploy/status/<task_id>', methods=['GET'])
 def get_deployment_status(task_id):
     status = models.get_deployment(task_id)
@@ -76,9 +105,11 @@ def get_deployment_status(task_id):
 # File Management for Code Editor
 @app.route('/api/files/<app_name>', methods=['GET'])
 def list_app_files(app_name):
-    app_path = os.path.join(os.path.dirname(__file__), 'builds', app_name)
-    if not os.path.exists(app_path):
-        return jsonify({"error": "App path not found"}), 404
+    resolved_name = resolve_app_name(app_name)
+    if not resolved_name:
+        return jsonify({"error": f"App '{app_name}' not found"}), 404
+        
+    app_path = os.path.join(os.path.dirname(__file__), 'builds', resolved_name)
     
     files = []
     for root, dirs, filenames in os.walk(app_path):
@@ -94,7 +125,11 @@ def read_app_file(app_name):
     if not rel_path:
         return jsonify({"error": "Path required"}), 400
     
-    app_path = os.path.join(os.path.dirname(__file__), 'builds', app_name)
+    resolved_name = resolve_app_name(app_name)
+    if not resolved_name:
+        return jsonify({"error": f"App '{app_name}' not found"}), 404
+
+    app_path = os.path.join(os.path.dirname(__file__), 'builds', resolved_name)
     full_path = os.path.join(app_path, rel_path)
     
     if not os.path.exists(full_path):
@@ -116,7 +151,11 @@ def write_app_file(app_name):
     if not rel_path or content is None:
         return jsonify({"error": "Path and content required"}), 400
     
-    app_path = os.path.join(os.path.dirname(__file__), 'builds', app_name)
+    resolved_name = resolve_app_name(app_name)
+    if not resolved_name:
+        return jsonify({"error": f"App '{app_name}' not found"}), 404
+
+    app_path = os.path.join(os.path.dirname(__file__), 'builds', resolved_name)
     full_path = os.path.join(app_path, rel_path)
     
     try:
@@ -129,15 +168,19 @@ def write_app_file(app_name):
 
 @app.route('/api/redeploy/<app_name>', methods=['POST'])
 def redeploy_app(app_name):
+    resolved_name = resolve_app_name(app_name)
+    if not resolved_name:
+         return jsonify({"error": f"App '{app_name}' not found"}), 404
+         
     # For redeploy, we assume files are already in builds/app_name
     # We need to trigger a building process that skips ingestion
     task_id = str(uuid.uuid4())
-    models.start_deployment(task_id, app_name)
+    models.start_deployment(task_id, resolved_name)
     
     # We'll use a modified pipeline call or just bypass ingestion
     def run_redeploy_async():
         from core.pipeline import DeploymentPipeline
-        pipeline = DeploymentPipeline(task_id, None, app_name)
+        pipeline = DeploymentPipeline(task_id, None, resolved_name)
         # Manually trigger stages skipping ingestion
         pipeline.update_stage("Source Code Ingestion", "success", "Using existing source code.")
         
