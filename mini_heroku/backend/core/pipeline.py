@@ -60,13 +60,18 @@ class DeploymentPipeline:
             models.update_deployment(self.task_id, 'error', str(e))
             return False
 
-    def stage_ingestion(self):
+    def _resolve_nested_dir(self):
         try:
-            extract(self.zip_path, self.build_dir)
-            # Handle single nested directory
             entries = [e for e in os.listdir(self.build_dir) if not e.startswith('__')]
             if len(entries) == 1 and os.path.isdir(os.path.join(self.build_dir, entries[0])):
                 self.build_dir = os.path.join(self.build_dir, entries[0])
+        except Exception:
+            pass
+
+    def stage_ingestion(self):
+        try:
+            extract(self.zip_path, self.build_dir)
+            self._resolve_nested_dir()
             self.update_stage("Source Code Ingestion", "success", "Source code ingested successfully.")
             return True
         except Exception as e:
@@ -75,6 +80,9 @@ class DeploymentPipeline:
 
     def stage_inspection(self):
         try:
+            # Re-check for nested directory in case ingestion was skipped (redeploy)
+            self._resolve_nested_dir()
+            
             self.runtime = detect_runtime(self.build_dir)
             if self.runtime == "unknown":
                 self.update_stage("Runtime & Dependency Inspection", "error", "Could not detect runtime.")
