@@ -29,8 +29,12 @@ def run_deployment_async(task_id, filepath, app_name):
         
         if result.get("status") == "success":
             models.update_deployment(task_id, 'success', result.get("message"))
-            # Ensure app exists in database
-            models.create_app(app_name, runtime=None, port=result.get('port'))
+            # Ensure app exists and is updated in database
+            existing_app = models.get_app_by_name(app_name)
+            if existing_app:
+                models.update_app(app_name, port=result.get('port'))
+            else:
+                models.create_app(app_name, runtime=None, port=result.get('port'))
         else:
             models.update_deployment(task_id, 'error', result.get("message", "Unknown deployment error"))
             
@@ -54,11 +58,31 @@ def deploy_app():
         app_name = os.path.splitext(filename)[0]
         task_id = str(uuid.uuid4())
         
+        # Check if app already exists to reuse port
+        existing_app = models.get_app_by_name(app_name)
+        port = existing_app['port'] if existing_app else None
+        
         # Initialize deployment tracking
         models.start_deployment(task_id, app_name)
         
+        def run_deploy_async():
+            try:
+                from deploy import DeploymentPipeline
+                pipeline = DeploymentPipeline(task_id, filepath, app_name, port=port)
+                success = pipeline.run()
+                if success:
+                    models.update_deployment(task_id, 'success', f"Deployed successfully to port {pipeline.port}")
+                    if existing_app:
+                        models.update_app(app_name, port=pipeline.port)
+                    else:
+                        models.create_app(app_name, runtime=None, port=pipeline.port)
+                else:
+                    models.update_deployment(task_id, 'error', "Deployment failed.")
+            except Exception as e:
+                models.update_deployment(task_id, 'error', str(e))
+
         # Trigger deployment in background
-        executor.submit(run_deployment_async, task_id, filepath, app_name)
+        executor.submit(run_deploy_async)
         
         return jsonify({
             "status": "accepted",
@@ -172,6 +196,10 @@ def redeploy_app(app_name):
     if not resolved_name:
          return jsonify({"error": f"App '{app_name}' not found"}), 404
          
+    # Check for existing app configuration
+    existing_app = models.get_app_by_name(resolved_name)
+    port = existing_app['port'] if existing_app else None
+    
     # For redeploy, we assume files are already in builds/app_name
     # We need to trigger a building process that skips ingestion
     task_id = str(uuid.uuid4())
@@ -180,7 +208,8 @@ def redeploy_app(app_name):
     # We'll use a modified pipeline call or just bypass ingestion
     def run_redeploy_async():
         from core.pipeline import DeploymentPipeline
-        pipeline = DeploymentPipeline(task_id, None, resolved_name)
+        # Re-use the port if it exists
+        pipeline = DeploymentPipeline(task_id, None, resolved_name, port=port)
         # Manually trigger stages skipping ingestion
         pipeline.update_stage("Source Code Ingestion", "success", "Using existing source code.")
         
@@ -191,7 +220,10 @@ def redeploy_app(app_name):
                pipeline.stage_registry() and \
                pipeline.stage_execution():
                 models.update_deployment(task_id, 'success', f"Redeployed successfully to port {pipeline.port}")
-                models.create_app(app_name, runtime=None, port=pipeline.port)
+                if existing_app:
+                    models.update_app(resolved_name, port=pipeline.port)
+                else:
+                    models.create_app(resolved_name, runtime=None, port=pipeline.port)
             else:
                  models.update_deployment(task_id, 'error', "Redeploy failed.")
         except Exception as e:

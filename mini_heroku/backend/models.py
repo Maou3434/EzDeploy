@@ -61,6 +61,28 @@ def create_app(name, runtime=None, port=None):
     finally:
         conn.close()
 
+def get_app_by_name(name):
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT * FROM apps WHERE name = ?', (name,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+def update_app(name, runtime=None, port=None):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        if runtime and port:
+            cursor.execute('UPDATE apps SET runtime=?, port=? WHERE name=?', (runtime, port, name))
+        elif runtime:
+            cursor.execute('UPDATE apps SET runtime=? WHERE name=?', (runtime, name))
+        elif port:
+            cursor.execute('UPDATE apps SET port=? WHERE name=?', (port, name))
+        conn.commit()
+    finally:
+        conn.close()
+
 def start_deployment(task_id, app_name):
     conn = get_db()
     cursor = conn.cursor()

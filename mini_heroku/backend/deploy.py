@@ -19,7 +19,11 @@ def deploy(zip_path, task_id=None):
         models.init_db()
         models.start_deployment(task_id, app_name)
     
-    pipeline = DeploymentPipeline(task_id, zip_path, app_name)
+    # Check if app already exists to reuse port
+    existing_app = models.get_app_by_name(app_name)
+    port = existing_app['port'] if existing_app else None
+    
+    pipeline = DeploymentPipeline(task_id, zip_path, app_name, port=port)
     success = pipeline.run()
     
     if success:

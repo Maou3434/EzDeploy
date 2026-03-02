@@ -10,13 +10,13 @@ from auto_patch import auto_patch
 import models
 
 class DeploymentPipeline:
-    def __init__(self, task_id, zip_path, app_name):
+    def __init__(self, task_id, zip_path, app_name, port=None):
         self.task_id = task_id
         self.zip_path = zip_path
         self.app_name = app_name
         self.build_dir = os.path.join("builds", app_name)
         self.runtime = None
-        self.port = None
+        self.port = port
         self.image_tag = app_name.lower()
 
     def update_stage(self, stage_name, status, message=None):
@@ -131,7 +131,8 @@ class DeploymentPipeline:
 
     def stage_execution(self):
         try:
-            self.port = get_free_port()
+            if self.port is None:
+                self.port = get_free_port()
             if run_container(self.image_tag, self.port):
                 self.update_stage("Runtime Execution", "success", f"App is live at port {self.port}")
                 return True
