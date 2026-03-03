@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
+import { AnimatePresence } from 'framer-motion';
 
 // Components & Pages
 import Layout from './components/Layout';
@@ -8,6 +9,7 @@ import LandingPage from './pages/LandingPage';
 import DeployPage from './pages/DeployPage';
 import DashboardPage from './pages/DashboardPage';
 import Editor from './components/Editor';
+import CustomCursor from './components/CustomCursor';
 
 function App() {
   const [containers, setContainers] = useState([]);
@@ -145,13 +147,17 @@ function App() {
         </Routes>
       </Layout>
 
-      {editingApp && (
-        <Editor
-          appName={editingApp}
-          onClose={() => setEditingApp(null)}
-          onRedeploy={handleRedeploy}
-        />
-      )}
+      <AnimatePresence>
+        {editingApp && (
+          <Editor
+            appName={editingApp}
+            onClose={() => setEditingApp(null)}
+            onRedeploy={handleRedeploy}
+          />
+        )}
+      </AnimatePresence>
+
+      <CustomCursor />
     </BrowserRouter>
   );
 }

@@ -14,44 +14,45 @@ const Layout = ({ children }) => {
     ];
 
     return (
-        <div className="app-wrapper" style={{ display: 'flex', minHeight: '100vh' }}>
+        <div className="app-wrapper" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
             <Background />
 
-            {/* Sidebar */}
+            {/* Top Navigation */}
             <nav className="glass" style={{
-                width: '280px',
-                height: 'calc(100vh - 40px)',
-                margin: '20px',
-                padding: '30px 20px',
+                margin: '20px auto',
+                width: 'calc(100% - 40px)',
+                maxWidth: '1200px',
+                padding: '12px 30px',
                 display: 'flex',
-                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 position: 'sticky',
                 top: '20px',
-                zIndex: 10
+                zIndex: 100
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '50px', padding: '0 10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '10px',
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '8px',
                         background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         boxShadow: '0 0 15px var(--primary-glow)'
                     }}>
-                        <FiActivity size={24} color="white" />
+                        <FiActivity size={20} color="white" />
                     </div>
-                    <span style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '1px' }} className="glow-text">EZDEPLOY</span>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '1px' }} className="glow-text">EZDEPLOY</span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                <div style={{ display: 'flex', gap: '24px' }}>
                     {navItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}
                             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                            style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}
                         >
                             {item.icon}
                             {item.label}
@@ -59,16 +60,14 @@ const Layout = ({ children }) => {
                     ))}
                 </div>
 
-                <div style={{ marginTop: 'auto', padding: '20px 10px', borderTop: '1px solid var(--glass-border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-dim)', fontSize: '0.85rem' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 10px var(--success)' }}></div>
-                        System Operational
-                    </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-dim)', fontSize: '0.75rem' }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 10px var(--success)' }}></div>
+                    Live
                 </div>
             </nav>
 
             {/* Main Content */}
-            <main style={{ flex: 1, padding: '40px 20px', position: 'relative' }}>
+            <main style={{ flex: 1, padding: '20px 20px 60px', position: 'relative', width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={location.pathname}

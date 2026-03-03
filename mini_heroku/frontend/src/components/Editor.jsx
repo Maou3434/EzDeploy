@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FiSave, FiX, FiFile, FiPlay, FiChevronRight } from 'react-icons/fi';
+import { FiSave, FiX, FiFile, FiPlay, FiChevronRight, FiCode } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Editor = ({ appName, onClose, onRedeploy }) => {
