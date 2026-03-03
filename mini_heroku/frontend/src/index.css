@@ -29,6 +29,8 @@ body {
   overflow-x: hidden;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  cursor: none !important;
+  /* Global hide */
 }
 
 /* Background Grid & Glows */
@@ -176,14 +178,16 @@ h4 {
   padding: 0 40px;
 }
 
+/* Navigation & Links */
 .nav-link {
   color: var(--text-dim);
   text-decoration: none;
   font-weight: 500;
   transition: all 0.2s;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   padding: 8px 16px;
   border-radius: 8px;
+  cursor: none !important;
 }
 
 .nav-link:hover,
@@ -194,6 +198,39 @@ h4 {
 
 .nav-link.active {
   color: var(--primary);
+  background: rgba(0, 242, 255, 0.05);
+}
+
+.upload-zone {
+  cursor: none !important;
+  transition: all 0.3s ease;
+  border: 1px dashed var(--glass-border);
+}
+
+.upload-zone:hover {
+  border-color: var(--primary);
+  background: rgba(0, 242, 255, 0.02);
+}
+
+.input-file {
+  display: none;
+  /* Hide default file input */
+}
+
+.browse-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-top: 12px;
+  display: inline-block;
+  transition: all 0.2s;
+}
+
+.browse-btn:hover {
+  border-color: var(--primary);
   background: rgba(0, 242, 255, 0.05);
 }
 

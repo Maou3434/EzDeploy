@@ -8,7 +8,7 @@ import Layout from './components/Layout';
 import LandingPage from './pages/LandingPage';
 import DeployPage from './pages/DeployPage';
 import DashboardPage from './pages/DashboardPage';
-import Editor from './components/Editor';
+import EditorPage from './pages/EditorPage';
 import CustomCursor from './components/CustomCursor';
 
 function App() {
@@ -139,23 +139,15 @@ function App() {
             <DashboardPage
               containers={containers}
               deleteContainer={deleteContainer}
-              setEditingApp={setEditingApp}
             />
+          } />
+          <Route path="/editor/:appName" element={
+            <EditorPage onRedeploy={handleRedeploy} />
           } />
           {/* Redirect any unknown path to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
-
-      <AnimatePresence>
-        {editingApp && (
-          <Editor
-            appName={editingApp}
-            onClose={() => setEditingApp(null)}
-            onRedeploy={handleRedeploy}
-          />
-        )}
-      </AnimatePresence>
 
       <CustomCursor />
     </BrowserRouter>

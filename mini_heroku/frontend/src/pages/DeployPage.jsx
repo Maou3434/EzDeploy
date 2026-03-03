@@ -29,13 +29,20 @@ const DeployPage = ({
 
             {!deploying && (
                 <motion.div
-                    className={`glass upload-zone ${dragActive ? 'drag-active' : ''}`}
+                    className="glass upload-zone"
                     onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
                     onClick={() => fileInputRef.current.click()}
                     whileHover={{ scale: 1.01 }}
-                    style={{ padding: '80px 40px', borderStyle: 'dashed' }}
+                    style={{ padding: '80px 40px', borderStyle: 'dashed', textAlign: 'center' }}
                 >
-                    <input ref={fileInputRef} type="file" className="input-file" accept=".zip" onChange={handleFileChange} />
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="input-file"
+                        accept=".zip"
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                    />
                     <div style={{
                         width: '80px',
                         height: '80px',
@@ -51,7 +58,10 @@ const DeployPage = ({
                         <FiUploadCloud size={40} />
                     </div>
                     <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Pushover to Deploy</h3>
-                    <p style={{ color: 'var(--text-dim)' }}>Drag & Drop ZIP or click to browse files</p>
+                    <p style={{ color: 'var(--text-dim)', marginBottom: '20px' }}>Drag & Drop ZIP or click to browse files</p>
+                    <div className="browse-btn">
+                        Browse Files
+                    </div>
                 </motion.div>
             )}
 

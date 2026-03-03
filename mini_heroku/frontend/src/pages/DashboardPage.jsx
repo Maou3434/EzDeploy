@@ -1,8 +1,10 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { FiServer, FiActivity, FiExternalLink, FiCode, FiTrash2, FiSearch, FiFilter } from 'react-icons/fi';
 
-const DashboardPage = ({ containers, deleteContainer, setEditingApp }) => {
+const DashboardPage = ({ containers, deleteContainer }) => {
+    const navigate = useNavigate();
     return (
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '48px', padding: '0 10px' }}>
@@ -122,7 +124,7 @@ const DashboardPage = ({ containers, deleteContainer, setEditingApp }) => {
                                         <button
                                             className="btn btn-outline"
                                             style={{ flex: 1, padding: '10px' }}
-                                            onClick={() => setEditingApp(container.name)}
+                                            onClick={() => navigate(`/editor/${container.name}`)}
                                         >
                                             <FiCode /> Edit
                                         </button>
