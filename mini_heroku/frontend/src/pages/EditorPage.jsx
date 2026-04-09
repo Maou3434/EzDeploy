@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiSave, FiX, FiFile, FiPlay, FiChevronRight, FiCode, FiActivity, FiArrowLeft, FiPlusCircle, FiCheckCircle, FiTrash2, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiSave, FiX, FiFile, FiPlay, FiChevronRight, FiCode, FiActivity, FiArrowLeft, FiPlusCircle, FiCheckCircle, FiTrash2, FiLock, FiEye, FiEyeOff, FiShield, FiAlertCircle, FiCpu } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { runDiagnostics } from '../services/OllamaService';
+import { runDiagnostics, runSentinelScan, generateFix } from '../services/OllamaService';
 
 const EditorPage = ({ onRedeploy }) => {
     const { appName } = useParams();
@@ -15,7 +15,9 @@ const EditorPage = ({ onRedeploy }) => {
     const [saving, setSaving] = useState(false);
     const [medicReport, setMedicReport] = useState(null);
     const [analyzing, setAnalyzing] = useState(false);
-    const [activeTab, setActiveTab] = useState('code'); // 'code', 'config'
+    const [activeTab, setActiveTab] = useState('code'); // 'code', 'config', 'sentinel'
+    const [sentinelIssues, setSentinelIssues] = useState([]);
+    const [scanning, setScanning] = useState(false);
     const [secrets, setSecrets] = useState({});
     const [newSecret, setNewSecret] = useState({ key: '', value: '' });
     const [revealedSecrets, setRevealedSecrets] = useState(new Set());
@@ -32,23 +34,12 @@ const EditorPage = ({ onRedeploy }) => {
         }
     }, [activeTab, appName]);
 
-    // Auto-scan logic (Medic)
-    useEffect(() => {
-        if (content && selectedFile) {
-            if (autoScanTimer.current) clearTimeout(autoScanTimer.current);
-            autoScanTimer.current = setTimeout(() => {
-                handleSanityCheck(true); // Silent background check
-            }, 5000);
-        }
-        return () => clearTimeout(autoScanTimer.current);
-    }, [content]);
-
     const fetchFiles = async () => {
         setLoading(true);
         try {
             const res = await axios.get(`/api/files/${appName}`);
             setFiles(res.data);
-            if (res.data.length > 0) {
+            if (res.data.length > 0 && !selectedFile) {
                 loadFile(res.data[0]);
             }
         } catch (err) {
@@ -129,6 +120,47 @@ const EditorPage = ({ onRedeploy }) => {
         setRevealedSecrets(next);
     };
 
+    const handleSentinelScan = async () => {
+        setScanning(true);
+        try {
+            const rawResults = await runSentinelScan(appName, files);
+            try {
+                const jsonStr = rawResults.substring(rawResults.indexOf('['), rawResults.lastIndexOf(']') + 1);
+                const results = JSON.parse(jsonStr);
+                setSentinelIssues(results);
+            } catch (e) {
+                console.error("Failed to parse Sentinel JSON:", e);
+                setSentinelIssues([{
+                    type: "architecture",
+                    title: "Scan Summary",
+                    description: rawResults,
+                    severity: "medium",
+                    fix_file: null
+                }]);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+        setScanning(false);
+    };
+
+    const handleApplyFix = async (issue) => {
+        if (!issue.fix_file) return;
+        setLoading(true);
+        try {
+            const fixContent = await generateFix(appName, issue.type, issue.fix_file, issue.description);
+            await axios.post(`/api/files/${appName}/write`, {
+                path: issue.fix_file,
+                content: fixContent
+            });
+            await fetchFiles();
+            handleSentinelScan();
+        } catch (err) {
+            console.error("Fix failed:", err);
+        }
+        setLoading(false);
+    };
+
     const handleRedeploy = async () => {
         if (onRedeploy) {
             await onRedeploy(appName);
@@ -162,45 +194,35 @@ const EditorPage = ({ onRedeploy }) => {
                     <div>
                         <h1 style={{ fontSize: '1.5rem', marginBottom: '4px' }}>Editor: <span className="glow-text">{appName}</span></h1>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'Outfit' }}>
-                            {activeTab === 'code' ? <>FILES <FiChevronRight size={12} /> {selectedFile}</> : <>CONFIGURATION <FiChevronRight size={12} /> SECRETS</>}
+                            {activeTab === 'code' ? <>FILES <FiChevronRight size={12} /> {selectedFile}</> : 
+                             activeTab === 'config' ? <>CONFIGURATION <FiChevronRight size={12} /> SECRETS</> :
+                             <>AI SENTINEL <FiChevronRight size={12} /> RADAR SCAN</>}
                         </div>
                     </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px' }}>
                     <div className="glass" style={{ display: 'flex', gap: '4px', padding: '4px', borderRadius: '12px', marginRight: '20px' }}>
-                        <button 
-                            onClick={() => setActiveTab('code')}
-                            style={{ 
-                                padding: '8px 16px', 
-                                borderRadius: '8px',
-                                border: 'none', 
-                                background: activeTab === 'code' ? 'var(--primary)' : 'transparent', 
-                                color: activeTab === 'code' ? '#000' : 'white', 
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                transition: 'all 0.3s'
-                            }}
-                        >
-                            CODE
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('config')}
-                            style={{ 
-                                padding: '8px 16px', 
-                                borderRadius: '8px',
-                                border: 'none', 
-                                background: activeTab === 'config' ? 'var(--primary)' : 'transparent', 
-                                color: activeTab === 'config' ? '#000' : 'white', 
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                transition: 'all 0.3s'
-                            }}
-                        >
-                            CONFIG
-                        </button>
+                        {['code', 'config', 'sentinel'].map(tab => (
+                            <button 
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                style={{ 
+                                    padding: '8px 16px', 
+                                    borderRadius: '8px',
+                                    border: 'none', 
+                                    background: activeTab === tab ? 'var(--primary)' : 'transparent', 
+                                    color: activeTab === tab ? '#000' : 'white', 
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s',
+                                    textTransform: 'uppercase'
+                                }}
+                            >
+                                {tab}
+                            </button>
+                        ))}
                     </div>
 
                     {activeTab === 'code' && (
@@ -307,85 +329,133 @@ const EditorPage = ({ onRedeploy }) => {
                             </AnimatePresence>
                         </div>
                     </>
+                ) : activeTab === 'sentinel' ? (
+                    <div style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
+                        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
+                                <div>
+                                    <h2 style={{ fontSize: '1.8rem', marginBottom: '12px' }}>AI <span className="glow-text">Sentinel</span> Radar</h2>
+                                    <p style={{ color: 'var(--text-dim)', fontSize: '1rem', lineHeight: 1.5 }}>
+                                        Project-wide intelligence for architecture optimization and security auditing.
+                                    </p>
+                                </div>
+                                <button className="btn btn-primary" onClick={handleSentinelScan} disabled={scanning}>
+                                    <FiShield /> {scanning ? 'SCANNING RADAR...' : 'TRIGGER FULL SCAN'}
+                                </button>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '20px' }}>
+                                {sentinelIssues.map((issue, idx) => (
+                                    <motion.div 
+                                        key={idx}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: idx * 0.1 }}
+                                        className="glass beveled"
+                                        style={{ 
+                                            padding: '24px', 
+                                            borderLeft: `4px solid ${issue.severity === 'high' ? 'var(--danger)' : 'var(--primary)'}`,
+                                            background: 'rgba(255,255,255,0.01)'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                                            <span style={{ 
+                                                fontSize: '0.65rem', 
+                                                fontWeight: 800, 
+                                                padding: '4px 8px', 
+                                                background: 'rgba(0,0,0,0.3)', 
+                                                color: issue.type === 'security' ? 'var(--danger)' : 'var(--primary)',
+                                                border: `1px solid ${issue.type === 'security' ? 'var(--danger)' : 'var(--primary)'}`
+                                            }}>
+                                                {(issue.type || 'TASK').toUpperCase()}
+                                            </span>
+                                            <span style={{ color: 'var(--text-dim)', fontSize: '0.75rem' }}>
+                                                {(issue.severity || 'MEDIUM').toUpperCase()} PRIORITY
+                                            </span>
+                                        </div>
+                                        <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>{issue.title}</h3>
+                                        <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginBottom: '24px', lineHeight: 1.6 }}>{issue.description}</p>
+                                        
+                                        {issue.fix_file && (
+                                            <button 
+                                                className="btn btn-outline" 
+                                                style={{ width: '100%', justifyContent: 'center', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                                                onClick={() => handleApplyFix(issue)}
+                                            >
+                                                <FiCpu /> {issue.fix_label || `Generate ${issue.fix_file}`}
+                                            </button>
+                                        )}
+                                    </motion.div>
+                                ))}
+                                {sentinelIssues.length === 0 && !scanning && (
+                                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '100px', background: 'rgba(0,0,0,0.1)', border: '1px dashed var(--glass-border)' }}>
+                                        <FiShield size={48} color="var(--text-dim)" style={{ marginBottom: '20px', opacity: 0.3 }} />
+                                        <p style={{ color: 'var(--text-dim)' }}>Radar sweep required. Trigger a full scan to identify project-level optimizations.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 ) : (
                     <div style={{ flex: 1, padding: '40px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)' }}>
                         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                             <div style={{ marginBottom: '40px' }}>
                                 <h2 style={{ fontSize: '1.8rem', marginBottom: '12px' }}>Cloud <span className="glow-text">Secrets</span></h2>
                                 <p style={{ color: 'var(--text-dim)', fontSize: '1rem', lineHeight: 1.5 }}>
-                                    Manage sensitive environment variables. These are injected securely into your container during the "Runtime Execution" stage.
+                                    Manage sensitive environment variables injected at runtime.
                                 </p>
                             </div>
 
                             <div className="glass beveled" style={{ padding: '30px', marginBottom: '40px', background: 'rgba(0, 242, 255, 0.02)' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '20px', alignItems: 'end' }}>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '10px', fontWeight: 600 }}>VARIABLE KEY</label>
+                                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '10px' }}>VARIABLE KEY</label>
                                         <input 
                                             type="text" 
                                             placeholder="e.g. DATABASE_URL"
                                             value={newSecret.key}
                                             onChange={(e) => setNewSecret({...newSecret, key: e.target.value.toUpperCase().replace(/\s/g, '_')})}
-                                            style={{ width: '100%', padding: '14px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--glass-border)', color: 'white', fontSize: '0.9rem', outline: 'none', fontFamily: 'JetBrains Mono' }}
+                                            style={{ width: '100%', padding: '14px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--glass-border)', color: 'white', fontSize: '0.9rem', outline: 'none' }}
                                         />
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '10px', fontWeight: 600 }}>VALUE</label>
+                                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-dim)', marginBottom: '10px' }}>VALUE</label>
                                         <input 
                                             type="password" 
-                                            placeholder="sensitive_value_here"
+                                            placeholder="sensitive_value"
                                             value={newSecret.value}
                                             onChange={(e) => setNewSecret({...newSecret, value: e.target.value})}
-                                            style={{ width: '100%', padding: '14px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--glass-border)', color: 'white', fontSize: '0.9rem', outline: 'none', fontFamily: 'JetBrains Mono' }}
+                                            style={{ width: '100%', padding: '14px', background: 'rgba(0,0,0,0.4)', border: '1px solid var(--glass-border)', color: 'white', fontSize: '0.9rem', outline: 'none' }}
                                         />
                                     </div>
                                     <button className="btn btn-primary" style={{ padding: '14px 24px' }} onClick={handleAddSecret}>
-                                        <FiPlusCircle /> ADD VARIABLE
+                                        <FiPlusCircle /> ADD
                                     </button>
                                 </div>
                             </div>
 
                             <div style={{ display: 'grid', gap: '12px' }}>
                                 {Object.entries(secrets).map(([key, value]) => (
-                                    <div key={key} className="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div key={key} className="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px' }}>
                                         <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                                             <FiLock style={{ color: 'var(--text-dim)', marginRight: '15px' }} />
-                                            <div style={{ marginRight: '40px', minWidth: '150px' }}>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: '2px' }}>KEY</div>
-                                                <div style={{ fontFamily: 'JetBrains Mono', color: 'var(--primary)', fontWeight: 600, fontSize: '0.95rem' }}>{key}</div>
-                                            </div>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: '2px' }}>VALUE</div>
-                                                <div style={{ fontFamily: 'JetBrains Mono', color: '#e2e2ee', fontSize: '0.95rem' }}>
+                                            <div>
+                                                <div style={{ fontFamily: 'JetBrains Mono', color: 'var(--primary)', fontWeight: 600 }}>{key}</div>
+                                                <div style={{ fontFamily: 'JetBrains Mono', color: '#e2e2ee', fontSize: '0.85rem' }}>
                                                     {revealedSecrets.has(key) ? value : '••••••••••••••••'}
                                                 </div>
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button 
-                                                onClick={() => toggleSecretReveal(key)}
-                                                className="btn btn-outline"
-                                                style={{ padding: '8px', minWidth: '40px', border: '1px solid #333' }}
-                                                title={revealedSecrets.has(key) ? 'Hide Secret' : 'Reveal Secret'}
-                                            >
+                                            <button onClick={() => toggleSecretReveal(key)} className="btn btn-outline" style={{ padding: '8px' }}>
                                                 {revealedSecrets.has(key) ? <FiEyeOff /> : <FiEye />}
                                             </button>
-                                            <button 
-                                                onClick={() => handleDeleteSecret(key)}
-                                                className="btn btn-outline"
-                                                style={{ padding: '8px', minWidth: '40px', border: '1px solid #333', color: 'var(--danger)' }}
-                                                title="Delete Secret"
-                                            >
+                                            <button onClick={() => handleDeleteSecret(key)} className="btn btn-outline" style={{ padding: '8px', color: 'var(--danger)' }}>
                                                 <FiTrash2 />
                                             </button>
                                         </div>
                                     </div>
                                 ))}
-                                {Object.keys(secrets).length === 0 && (
-                                    <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-dim)', background: 'rgba(0,0,0,0.1)', border: '1px dashed var(--glass-border)' }}>
-                                        No environment variables configured.
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>
