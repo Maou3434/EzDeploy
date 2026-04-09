@@ -10,6 +10,7 @@ import DeployPage from './pages/DeployPage';
 import DashboardPage from './pages/DashboardPage';
 import EditorPage from './pages/EditorPage';
 import CustomCursor from './components/CustomCursor';
+import AIBuddy from './components/AIBuddy';
 
 function App() {
   const [containers, setContainers] = useState([]);
@@ -149,6 +150,7 @@ function App() {
         </Routes>
       </Layout>
 
+      <AIBuddy context={deploymentData?.message} />
       <CustomCursor />
     </BrowserRouter>
   );

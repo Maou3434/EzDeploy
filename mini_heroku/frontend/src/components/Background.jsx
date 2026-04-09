@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import GalaxyBackground from './GalaxyBackground';
 
 const Background = () => {
   const { scrollY } = useScroll();
@@ -11,6 +12,9 @@ const Background = () => {
 
   return (
     <div className="bg-scene">
+      {/* 3D Particle Scene */}
+      <GalaxyBackground />
+
       <motion.div
         className="bg-glow-1"
         style={{ y: y1, rotate }}
