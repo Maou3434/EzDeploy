@@ -133,7 +133,11 @@ class DeploymentPipeline:
         try:
             if self.port is None:
                 self.port = get_free_port()
-            if run_container(self.image_tag, self.port):
+            
+            # Fetch application secrets
+            secrets = models.get_secrets(self.app_name)
+            
+            if run_container(self.image_tag, self.port, env_vars=secrets):
                 self.update_stage("Runtime Execution", "success", f"App is live at port {self.port}")
                 return True
             else:

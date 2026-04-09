@@ -55,6 +55,17 @@ def init_db():
             FOREIGN KEY (deployment_id) REFERENCES deployments (id)
         )
     ''')
+
+    # App Secrets table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS app_secrets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            app_name TEXT NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT NOT NULL,
+            UNIQUE(app_name, key)
+        )
+    ''')
     
     conn.commit()
     conn.close()
@@ -147,6 +158,37 @@ def get_deployment(task_id):
         stages = conn.execute('SELECT stage_name, status, message, updated_at FROM deployment_stages WHERE deployment_id = ? ORDER BY id ASC', (task_id,)).fetchall()
         deployment['stages'] = [dict(s) for s in stages]
         return deployment
+    finally:
+        conn.close()
+
+# Secrets Management
+def get_secrets(app_name):
+    conn = get_db()
+    try:
+        rows = conn.execute('SELECT key, value FROM app_secrets WHERE app_name = ?', (app_name,)).fetchall()
+        return {row['key']: row['value'] for row in rows}
+    finally:
+        conn.close()
+
+def set_secret(app_name, key, value):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            INSERT INTO app_secrets (app_name, key, value) 
+            VALUES (?, ?, ?) 
+            ON CONFLICT(app_name, key) DO UPDATE SET value=excluded.value
+        ''', (app_name, key, value))
+        conn.commit()
+    finally:
+        conn.close()
+
+def delete_secret(app_name, key):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('DELETE FROM app_secrets WHERE app_name = ? AND key = ?', (app_name, key))
+        conn.commit()
     finally:
         conn.close()
 

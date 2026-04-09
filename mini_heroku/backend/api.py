@@ -364,6 +364,34 @@ def deploy_template():
     executor.submit(run_template_deploy_async)
     return jsonify({"status": "accepted", "task_id": task_id}), 202
 
+# --- Secrets Management Endpoints ---
+
+@app.route('/api/apps/<app_name>/secrets', methods=['GET'])
+def list_secrets(app_name):
+    secrets = models.get_secrets(app_name)
+    return jsonify(secrets)
+
+@app.route('/api/apps/<app_name>/secrets', methods=['POST'])
+def add_secret(app_name):
+    data = request.json
+    key = data.get('key')
+    value = data.get('value')
+    if not key or not value:
+        return jsonify({"status": "error", "message": "Key and Value required"}), 400
+    
+    models.set_secret(app_name, key, value)
+    return jsonify({"status": "success", "message": f"Secret '{key}' updated"})
+
+@app.route('/api/apps/<app_name>/secrets/<key>', methods=['DELETE'])
+def remove_secret(app_name, key):
+    models.delete_secret(app_name, key)
+    return jsonify({"status": "success", "message": f"Secret '{key}' removed"})
+
 if __name__ == '__main__':
-    models.init_db() # Ensure DB is initialized
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+    
+    import models
+    models.init_db()
+    
     app.run(host='0.0.0.0', port=5000, debug=True)
