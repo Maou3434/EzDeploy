@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMessageSquare, FiX, FiCpu, FiCornerDownLeft } from 'react-icons/fi';
+import { FiX, FiActivity, FiZap, FiCpu, FiAlertCircle } from 'react-icons/fi';
 import { getAIResponse } from '../services/OllamaService';
 
-const AIBuddy = ({ context = "" }) => {
+const AIBuddy = ({ context = "", status = "idle" }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [message, setMessage] = useState("Hello! I'm your EZDeploy Architect. How can I help with your deployment today?");
+    const [message, setMessage] = useState("I'm and analyzing your deployment environment. How can I assist you today?");
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (status === 'error') {
+            setIsOpen(true);
+            setMessage("An error has been detected in the deployment pipeline. Would you like me to analyze the logs for a solution?");
+        }
+    }, [status]);
 
     const handlePing = async () => {
         setLoading(true);
         const prompt = context 
-            ? `Given this context: ${context}. Give me a quick architecture tip.` 
-            : "Give me a quick tip for cloud deployment efficiency.";
-        const res = await getAIResponse(prompt, "You are EZDeploy AI. Keep answers under 30 words.");
+            ? `Context: ${context}. Status: ${status}. Provide a professional deployment advice.` 
+            : "Give me a professional tip for optimizing cloud-native applications.";
+        const res = await getAIResponse(prompt, "You are a Professional Cloud Architect. Keep it concise and actionable.");
         setMessage(res);
         setLoading(false);
     };
@@ -23,39 +30,47 @@ const AIBuddy = ({ context = "" }) => {
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                        className="glass"
+                        initial={{ opacity: 0, scale: 0.9, x: 20 }}
+                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, x: 20 }}
+                        className="glass beveled"
                         style={{
-                            width: '320px',
-                            minHeight: '150px',
+                            width: '350px',
+                            minHeight: '180px',
                             padding: '24px',
                             marginBottom: '15px',
-                            position: 'relative',
-                            border: '1px solid var(--primary-glow)'
+                            border: `1px solid ${status === 'error' ? 'var(--danger)' : 'var(--primary-glow)'}`,
+                            boxShadow: `0 15px 50px rgba(0,0,0,0.5)`
                         }}
                     >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
-                                <FiCpu /> <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>EZ-AI ARCHITECT</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: status === 'error' ? 'var(--danger)' : 'var(--primary)' }}>
+                                {status === 'error' ? <FiAlertCircle /> : <FiCpu />}
+                                <span style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '1px' }}>AI ASSISTANT</span>
                             </div>
                             <button onClick={() => setIsOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer' }}>
                                 <FiX />
                             </button>
                         </div>
                         
-                        <p style={{ fontSize: '0.9rem', lineHeight: 1.5, color: '#fff' }}>
-                            {loading ? "Thinking..." : message}
-                        </p>
+                        <div style={{ 
+                            fontSize: '0.9rem', 
+                            lineHeight: 1.6, 
+                            color: '#e2e2ee', 
+                            background: 'rgba(255,255,255,0.03)',
+                            padding: '16px',
+                            borderLeft: `2px solid ${status === 'error' ? 'var(--danger)' : 'var(--primary)'}`
+                        }}>
+                            {loading ? "Analyzing system parameters..." : message}
+                        </div>
 
-                        <div style={{ marginTop: '20px', display: 'flex', gap: '8px' }}>
+                        <div style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
                             <button 
                                 onClick={handlePing}
-                                className="btn btn-outline" 
-                                style={{ padding: '6px 12px', fontSize: '0.7rem', flex: 1 }}
+                                className="btn btn-primary" 
+                                style={{ padding: '10px 20px', fontSize: '0.8rem', flex: 1 }}
                             >
-                                <FiCornerDownLeft /> Get Tip
+                                <FiZap /> Ask for Insights
                             </button>
                         </div>
                     </motion.div>
@@ -69,18 +84,19 @@ const AIBuddy = ({ context = "" }) => {
                 style={{
                     width: '60px',
                     height: '60px',
-                    borderRadius: '30px',
-                    background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                    borderRadius: '0', 
+                    background: status === 'error' ? 'var(--danger)' : 'var(--primary)',
                     border: 'none',
-                    color: 'white',
+                    color: '#000',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    boxShadow: '0 8px 32px var(--primary-glow)'
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                    clipPath: 'polygon(15% 0%, 100% 0%, 100% 85%, 85% 100%, 0% 100%, 0% 15%)'
                 }}
             >
-                {isOpen ? <FiX size={24} /> : <FiMessageSquare size={24} />}
+                {status === 'error' ? <FiAlertCircle size={24} /> : <FiCpu size={24} />}
             </motion.button>
         </div>
     );

@@ -18,7 +18,7 @@ const Layout = ({ children }) => {
             <Background />
 
             {/* Top Navigation */}
-            <nav className="glass" style={{
+            <nav className="glass beveled" style={{
                 margin: '20px auto',
                 width: 'calc(100% - 40px)',
                 maxWidth: '1200px',
@@ -46,15 +46,19 @@ const Layout = ({ children }) => {
                     <span style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '1px' }} className="glow-text">EZDEPLOY</span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '24px' }}>
+                <div style={{ display: 'flex', gap: '32px' }}>
                     {navItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}
                             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}
+                            style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '10px'
+                            }}
                         >
-                            {item.icon}
+                            <span style={{ fontSize: '1.1rem', display: 'flex' }}>{item.icon}</span>
                             {item.label}
                         </NavLink>
                     ))}
