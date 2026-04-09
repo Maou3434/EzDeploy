@@ -75,9 +75,9 @@ def deploy_app():
                 if success:
                     models.update_deployment(task_id, 'success', f"Deployed successfully to port {pipeline.port}")
                     if existing_app:
-                        models.update_app(app_name, port=pipeline.port)
+                        models.update_app(app_name, port=pipeline.port, source='upload')
                     else:
-                        models.create_app(app_name, runtime=None, port=pipeline.port)
+                        models.create_app(app_name, runtime=None, port=pipeline.port, source='upload')
                 else:
                     models.update_deployment(task_id, 'error', "Deployment failed.")
             except Exception as e:
@@ -250,12 +250,23 @@ def list_containers():
             for line in output.split('\n'):
                 parts = line.split('|')
                 if len(parts) >= 5:
+                    container_name = parts[1]
+                    # Map container name (e.g. app_name_container) back to app_name
+                    # We can use the resolve_app_name logic or just simple string check
+                    resolved = resolve_app_name(container_name)
+                    source = 'upload' # Default
+                    if resolved:
+                        app_data = models.get_app_by_name(resolved)
+                        if app_data:
+                            source = app_data.get('source', 'upload')
+
                     containers.append({
                         "id": parts[0],
-                        "name": parts[1],
+                        "name": resolved or parts[1],
                         "image": parts[2],
                         "ports": parts[3],
-                        "status": parts[4]
+                        "status": parts[4],
+                        "source": source
                     })
         
         return jsonify(containers)
@@ -343,7 +354,7 @@ def deploy_template():
                 
                 if success:
                     models.update_deployment(task_id, 'success', f"Deployed successfully to port {pipeline.port}")
-                    models.create_app(app_name, runtime=None, port=pipeline.port)
+                    models.create_app(app_name, runtime=None, port=pipeline.port, source='marketplace')
                 else:
                     models.update_deployment(task_id, 'error', "Deployment failed during build.")
                     

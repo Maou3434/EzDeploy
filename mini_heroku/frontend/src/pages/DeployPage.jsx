@@ -109,6 +109,9 @@ const DeployPage = ({
                             border: `1px solid ${deploymentData?.status === 'error' ? 'var(--danger)' : 'var(--success)'}`
                         }}>
                             {deploymentData?.app_name?.toUpperCase() || 'SYNCHRONIZING...'}
+                            <span style={{ marginLeft: '10px', opacity: 0.6, fontSize: '0.6rem' }}>
+                                [{deploymentData?.source?.toUpperCase() || 'PENDING'}]
+                            </span>
                         </div>
                     </div>
 

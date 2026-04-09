@@ -125,8 +125,9 @@ const DashboardPage = ({ containers, deleteContainer }) => {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
                                             <div>
                                                 <h2 style={{ fontSize: '1.4rem', marginBottom: '4px' }}>{container.name}</h2>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-                                                    <FiServer size={12} /> {container.image}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-dim)' }}>
+                                                    <FiBox size={14} />
+                                                    <span style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>Source: {container.source || 'Upload'}</span>
                                                 </div>
                                             </div>
                                             <div style={{
@@ -145,7 +146,7 @@ const DashboardPage = ({ containers, deleteContainer }) => {
                                         <div style={{ marginBottom: '28px', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                                                 <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>Source</span>
-                                                <span style={{ fontSize: '0.85rem' }}>GitHub Main</span>
+                                                <span style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>{container.source || 'Upload'}</span>
                                             </div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                                 <span style={{ fontSize: '0.85rem', color: 'var(--text-dim)' }}>Port</span>

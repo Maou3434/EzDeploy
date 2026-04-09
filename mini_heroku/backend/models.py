@@ -20,9 +20,16 @@ def init_db():
             runtime TEXT,
             port INTEGER,
             status TEXT DEFAULT 'stopped',
+            source TEXT DEFAULT 'upload',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    # Simple migration: add source column if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE apps ADD COLUMN source TEXT DEFAULT 'upload'")
+    except sqlite3.OperationalError:
+        pass # Column already exists
     
     # Deployments table
     cursor.execute('''
@@ -52,11 +59,13 @@ def init_db():
     conn.commit()
     conn.close()
 
-def create_app(name, runtime=None, port=None):
+def create_app(name, runtime=None, port=None, source='upload'):
     conn = get_db()
     cursor = conn.cursor()
     try:
-        cursor.execute('INSERT OR IGNORE INTO apps (name, runtime, port) VALUES (?, ?, ?)', (name, runtime, port))
+        cursor.execute('INSERT OR IGNORE INTO apps (name, runtime, port, source) VALUES (?, ?, ?, ?)', (name, runtime, port, source))
+        # Ensure source is updated if record exists
+        cursor.execute('UPDATE apps SET source=? WHERE name=?', (source, name))
         conn.commit()
     finally:
         conn.close()
@@ -69,7 +78,7 @@ def get_app_by_name(name):
     finally:
         conn.close()
 
-def update_app(name, runtime=None, port=None):
+def update_app(name, runtime=None, port=None, source=None):
     conn = get_db()
     cursor = conn.cursor()
     try:
@@ -79,6 +88,9 @@ def update_app(name, runtime=None, port=None):
             cursor.execute('UPDATE apps SET runtime=? WHERE name=?', (runtime, name))
         elif port:
             cursor.execute('UPDATE apps SET port=? WHERE name=?', (port, name))
+        
+        if source:
+            cursor.execute('UPDATE apps SET source=? WHERE name=?', (source, name))
         conn.commit()
     finally:
         conn.close()
