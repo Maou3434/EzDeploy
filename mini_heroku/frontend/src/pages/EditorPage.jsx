@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { FiSave, FiX, FiFile, FiPlay, FiChevronRight, FiCode, FiActivity, FiArrowLeft, FiPlusCircle, FiCheckCircle, FiTrash2, FiLock, FiEye, FiEyeOff, FiShield, FiAlertCircle, FiCpu } from 'react-icons/fi';
+import { FiSave, FiX, FiFile, FiPlay, FiChevronRight, FiCode, FiActivity, FiArrowLeft, FiPlusCircle, FiCheckCircle, FiTrash2, FiLock, FiEye, FiEyeOff, FiShield, FiAlertCircle, FiCpu, FiSearch, FiLoader } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { runDiagnostics, runSentinelScan, generateFix } from '../services/OllamaService';
 
@@ -391,6 +391,58 @@ const EditorPage = ({ onRedeploy }) => {
                                     <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '100px', background: 'rgba(0,0,0,0.1)', border: '1px dashed var(--glass-border)' }}>
                                         <FiShield size={48} color="var(--text-dim)" style={{ marginBottom: '20px', opacity: 0.3 }} />
                                         <p style={{ color: 'var(--text-dim)' }}>Radar sweep required. Trigger a full scan to identify project-level optimizations.</p>
+                                    </div>
+                                )}
+
+                                {scanning && (
+                                    <div style={{ gridColumn: '1 / -1', padding: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                        <div style={{ position: 'relative', width: '200px', height: '200px', marginBottom: '40px' }}>
+                                            {/* Radar Pulses */}
+                                            {[1, 2, 3].map(i => (
+                                                <motion.div
+                                                    key={i}
+                                                    initial={{ scale: 0.5, opacity: 0.5 }}
+                                                    animate={{ scale: 2, opacity: 0 }}
+                                                    transition={{ repeat: Infinity, duration: 2, delay: i * 0.6 }}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: 0, left: 0, right: 0, bottom: 0,
+                                                        border: '2px solid var(--primary)',
+                                                        borderRadius: '50%'
+                                                    }}
+                                                />
+                                            ))}
+                                            <div style={{ 
+                                                position: 'absolute', 
+                                                top: '50%', left: '50%', 
+                                                transform: 'translate(-50%, -50%)',
+                                                background: 'var(--bg-dark)',
+                                                padding: '20px',
+                                                borderRadius: '50%',
+                                                border: '1px solid var(--primary)',
+                                                boxShadow: '0 0 20px var(--primary-glow)'
+                                            }}>
+                                                <FiShield size={40} className="glow-text" />
+                                            </div>
+                                            {/* Scanning Line */}
+                                            <motion.div 
+                                                animate={{ rotate: 360 }}
+                                                transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: '50%', left: '50%',
+                                                    width: '100px', height: '2px',
+                                                    background: 'linear-gradient(to right, var(--primary), transparent)',
+                                                    transformOrigin: 'left center',
+                                                    zIndex: 5
+                                                }}
+                                            />
+                                        </div>
+                                        <h3 style={{ fontSize: '1.2rem', color: 'var(--primary)', marginBottom: '10px' }}>SENTINEL RADAR ACTIVE</h3>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-dim)' }}>
+                                            <FiLoader className="spin" />
+                                            <span>Analyzing project topology & hunting for vulnerabilities...</span>
+                                        </div>
                                     </div>
                                 )}
                             </div>
