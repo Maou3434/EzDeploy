@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiHome, FiUploadCloud, FiGrid, FiSettings, FiActivity } from 'react-icons/fi';
+import { FiHome, FiUploadCloud, FiGrid, FiSettings, FiActivity, FiBox } from 'react-icons/fi';
 import Background from './Background';
 
 const Layout = ({ children }) => {
@@ -9,6 +9,7 @@ const Layout = ({ children }) => {
 
     const navItems = [
         { path: '/', icon: <FiHome />, label: 'Home' },
+        { path: '/marketplace', icon: <FiBox />, label: 'Marketplace' },
         { path: '/deploy', icon: <FiUploadCloud />, label: 'Deploy' },
         { path: '/dashboard', icon: <FiGrid />, label: 'Dashboard' },
     ];

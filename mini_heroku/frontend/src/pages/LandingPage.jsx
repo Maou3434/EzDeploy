@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FiZap, FiShield, FiGlobe, FiCode, FiLayers, FiPlusCircle, FiTerminal, FiChevronRight } from 'react-icons/fi';
+import { FiZap, FiShield, FiGlobe, FiCode, FiLayers, FiPlusCircle, FiTerminal, FiChevronRight, FiBox, FiArrowRight } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 const LandingPage = () => {
@@ -133,7 +133,7 @@ const LandingPage = () => {
                             marginBottom: '30px',
                             color: 'var(--primary)',
                             border: '1px solid var(--primary-glow)',
-                            clipPath: 'polygon(15% 0%, 85% 0%, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0% 85%, 0% 15%)'
+                            clipPath: 'polygon(15% 0%, 100% 0%, 100% 85%, 85% 100%, 0% 100%, 0% 15%)'
                         }}>
                             {React.cloneElement(f.icon, { size: 24 })}
                         </div>
@@ -142,6 +142,30 @@ const LandingPage = () => {
                     </div>
                 ))}
             </div>
+
+            {/* Marketplace CTA */}
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                className="glass beveled"
+                style={{
+                    marginTop: '80px',
+                    padding: '60px 40px',
+                    textAlign: 'center',
+                    background: 'linear-gradient(135deg, rgba(0, 242, 255, 0.05), rgba(112, 0, 255, 0.05))',
+                    border: '1px solid var(--primary-glow)'
+                }}
+            >
+                <FiBox size={40} color="var(--primary)" style={{ marginBottom: '20px' }} />
+                <h2 style={{ fontSize: '2rem', marginBottom: '20px' }}>EXPLORE VERIFIED <span className="glow-text">BOILERPLATES</span></h2>
+                <p style={{ color: 'var(--text-dim)', maxWidth: '600px', margin: '0 auto 40px', fontSize: '1.1rem' }}>
+                    Don't start from scratch. Choose from our curated, pre-optimized stacks for Python, Node.js, and Static sites.
+                </p>
+                <button onClick={() => navigate('/marketplace')} className="btn btn-primary" style={{ padding: '16px 40px' }}>
+                    BROWSE TEMPLATES <FiArrowRight />
+                </button>
+            </motion.div>
 
             <style>{`
                 @keyframes scan {

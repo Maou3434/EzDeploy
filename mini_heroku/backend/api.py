@@ -6,6 +6,8 @@ from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
+import shutil
+import tempfile
 
 from deploy import deploy
 import models
@@ -267,6 +269,89 @@ def delete_container(container_id):
         return jsonify({"status": "success", "message": f"Container {container_id} removed"}), 200
     except subprocess.CalledProcessError as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+# Curated Marketplace Templates
+MARKETPLACE_TEMPLATES = [
+    {
+        "id": "flask",
+        "name": "Flask Boilerplate",
+        "description": "Minimal Python Flask API with optimized industrial presets.",
+        "type": "official",
+        "tech": "Python",
+        "path": "boilerplates/flask"
+    },
+    {
+        "id": "node",
+        "name": "Express.js Core",
+        "description": "High-performance Node.js Express server template.",
+        "type": "official",
+        "tech": "Node.js",
+        "path": "boilerplates/node"
+    },
+    {
+        "id": "static",
+        "name": "Static Landing",
+        "description": "Professional Nginx static site boilerplate.",
+        "type": "official",
+        "tech": "HTML/CSS",
+        "path": "boilerplates/static"
+    }
+]
+
+@app.route('/api/templates', methods=['GET'])
+def list_templates():
+    return jsonify(MARKETPLACE_TEMPLATES)
+
+@app.route('/api/deploy/template', methods=['POST'])
+def deploy_template():
+    data = request.json
+    app_name = data.get('app_name', '').strip()
+    template_id = data.get('template_id')
+    
+    if not app_name:
+        return jsonify({"status": "error", "message": "Application name required"}), 400
+
+    template = next((t for t in MARKETPLACE_TEMPLATES if t['id'] == template_id), None)
+    if not template:
+        return jsonify({"status": "error", "message": "Invalid template selected"}), 400
+
+    task_id = str(uuid.uuid4())
+    models.start_deployment(task_id, app_name)
+
+    def run_template_deploy_async():
+        with tempfile.TemporaryDirectory() as tmpdir:
+            try:
+                # Copy local boilerplate instead of cloning
+                boilerplate_path = os.path.join(os.path.dirname(__file__), template['path'])
+                models.update_deployment(task_id, 'processing', "Loading official boilerplate...")
+                
+                # Copy existing files to tmpdir
+                if os.path.exists(boilerplate_path):
+                    shutil.copytree(boilerplate_path, tmpdir, dirs_exist_ok=True)
+                else:
+                    raise Exception(f"Boilerplate source not found: {template['path']}")
+                
+                # Create a zip to feed into the pipeline
+                zip_filename = f"{app_name}.zip"
+                zip_path = os.path.join(app.config['UPLOAD_FOLDER'], zip_filename)
+                shutil.make_archive(zip_path.replace('.zip', ''), 'zip', tmpdir)
+                
+                # Run the standard pipeline
+                from deploy import DeploymentPipeline
+                pipeline = DeploymentPipeline(task_id, zip_path, app_name)
+                success = pipeline.run()
+                
+                if success:
+                    models.update_deployment(task_id, 'success', f"Deployed successfully to port {pipeline.port}")
+                    models.create_app(app_name, runtime=None, port=pipeline.port)
+                else:
+                    models.update_deployment(task_id, 'error', "Deployment failed during build.")
+                    
+            except Exception as e:
+                models.update_deployment(task_id, 'error', f"Configuration error: {str(e)}")
+
+    executor.submit(run_template_deploy_async)
+    return jsonify({"status": "accepted", "task_id": task_id}), 202
 
 if __name__ == '__main__':
     models.init_db() # Ensure DB is initialized

@@ -9,6 +9,7 @@ import LandingPage from './pages/LandingPage';
 import DeployPage from './pages/DeployPage';
 import DashboardPage from './pages/DashboardPage';
 import EditorPage from './pages/EditorPage';
+import MarketplacePage from './pages/MarketplacePage';
 import CustomCursor from './components/CustomCursor';
 import AIBuddy from './components/AIBuddy';
 
@@ -142,6 +143,7 @@ function App() {
               deleteContainer={deleteContainer}
             />
           } />
+          <Route path="/marketplace" element={<MarketplacePage />} />
           <Route path="/editor/:appName" element={
             <EditorPage onRedeploy={handleRedeploy} />
           } />
